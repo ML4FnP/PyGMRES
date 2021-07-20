@@ -47,22 +47,3 @@ def prob_norm(b):
 cidx   = lambda i: i-1  # c-style index from math-style index
 midx   = lambda i: i+1  # math-style index from c-style index
 mrange = lambda n: range(1, n + 1)
-
-
-
-def timer(func):
-    """Print the runtime of the decorated function"""
-
-    @wraps(func)
-    def wrapper_timer(*args, **kwargs):
-        start_time = time.perf_counter()  # 1
-        value = func(*args, **kwargs)
-        end_time = time.perf_counter()  # 2
-        run_time = end_time - start_time  # 3
-        # print(f"Finished {func.__name__!r} in {run_time:.4f} secs")
-        return value,run_time
-
-    # preserve the original function signature
-    wrapper_timer.__signature__ = signature(func)
-
-    return wrapper_timer
