@@ -75,15 +75,4 @@ def Gauss_pdf(xArr,loc,sig):
 
 
 def Gauss_pdf_2D(xGrid,yGrid,xloc,yloc,sig):
-    return np.exp(-0.5*(  ((xGrid-xloc)/sig)**2.0 +((yGrid-yloc)/sig)**2.0 ))/(2*np.pi*sig**2.0)
-
-
-
-def moving_average(a, n):
-    if n == 0:
-        return 0
-    elif n < 25:
-        Window=int(math.ceil(0.5*n))
-    else:
-        Window=25
-    return np.sum(a[-Window-1:-1])/Window
+    eturn np.exp(-0.5*(  ((xGrid-xloc)/sig)**2.0 +((yGrid-yloc)/sig)**2.0 ))/(2*np.pi*sig**2.0)
