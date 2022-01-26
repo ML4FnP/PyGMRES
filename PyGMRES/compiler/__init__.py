@@ -5,7 +5,6 @@ from functools import wraps
 from inspect   import signature
 
 
-
 class Singleton(type):
     """
     Singleton Class type
@@ -15,7 +14,6 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
 
 
 class RC(metaclass=Singleton):
@@ -40,13 +38,7 @@ def compile():
     """
 
     def noop(func):
-        @wraps(func)
-        def _noop(*args, **kwargs):
-            print("NOOP")
-            return func(*args, **kwargs)
-        _noop.__signature__ = signature(func)
-        return _noop
-
+        return func
 
     def op(func):
         @wraps(func)
@@ -55,7 +47,6 @@ def compile():
             return func(*args, **kwargs)
         _op.__signature__ = signature(func)
         return _op
-
 
     if RC().enable_numba:
         return op
