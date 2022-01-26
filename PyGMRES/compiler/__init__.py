@@ -1,19 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from functools import wraps
-from inspect   import signature
+from functools   import wraps
+from inspect     import signature
+from collections import namedtuple
 
-
-class Singleton(type):
-    """
-    Singleton Class type
-    """
-    _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+from ..util.singleton import Singleton
 
 
 class RC(metaclass=Singleton):
@@ -33,8 +25,35 @@ class RC(metaclass=Singleton):
         self._enable_numba = val
 
 
+class Decorated(metaclass=Singleton):
+    """
+    Stores a record of decorated function
+    """
+    def __init__(self):
+        self.descriptor = namedtuple(
+            "FunctionDescriptor", ("module", "name", "signature")
+        )
+        self._record = set()
+
+    @property
+    def record(self):
+        return self._record
+
+    def add(self, func):
+        self._record.add(
+            self.descriptor(
+                module=func.__module__,
+                name=func.__name__,
+                signature=signature(func)
+            )
+        )
+
+
 def compile():
     """
+    Conditional Numba compiler decorator that invokes the compiler iff
+    RC().enable_numba = True when decorator is invoked (i.e. when the decorated
+    function is first defined.)
     """
 
     def noop(func):
@@ -43,9 +62,9 @@ def compile():
     def op(func):
         @wraps(func)
         def _op(*args, **kwargs):
-            print("OP")
             return func(*args, **kwargs)
         _op.__signature__ = signature(func)
+        Decorated().add(func)
         return _op
 
     if RC().enable_numba:

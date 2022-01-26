@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyGMRES import compiler
+from PyGMRES.compiler import compile, RC, Decorated
 
+RC().enable_numba = False
 
-@compiler.compile()
+@compile()
 def test1():
     print("hi")
 
-test1()
+RC().enable_numba = True
 
-compiler.RC().enable_numba = False
-
-@compiler.compile()
+@compile()
 def test2():
     print("ho")
 
 test1()
 test2()
+print(Decorated().record)
