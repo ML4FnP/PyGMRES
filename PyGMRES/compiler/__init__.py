@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from functools   import wraps
 from inspect     import signature
 from collections import namedtuple
 
@@ -14,6 +13,7 @@ class RC(metaclass=Singleton):
     """
     def __init__(self):
         self._enable_numba = True
+        self._lock = False
 
     @property
     def enable_numba(self):
@@ -21,8 +21,15 @@ class RC(metaclass=Singleton):
 
     @enable_numba.setter
     def enable_numba(self, val):
-        print("setter called")
-        self._enable_numba = val
+        if not self._lock:
+            self._enable_numba = val
+        else:
+            raise RuntimeError(
+                "Cannot set enable_numba after compiler has been loaded"
+            )
+
+    def lock(self):
+        self._lock = True
 
 
 class Decorated(metaclass=Singleton):
@@ -47,27 +54,3 @@ class Decorated(metaclass=Singleton):
                 signature=signature(func)
             )
         )
-
-
-def compile():
-    """
-    Conditional Numba compiler decorator that invokes the compiler iff
-    RC().enable_numba = True when decorator is invoked (i.e. when the decorated
-    function is first defined.)
-    """
-
-    def noop(func):
-        return func
-
-    def op(func):
-        @wraps(func)
-        def _op(*args, **kwargs):
-            return func(*args, **kwargs)
-        _op.__signature__ = signature(func)
-        Decorated().add(func)
-        return _op
-
-    if RC().enable_numba:
-        return op
-    else:
-        return noop
