@@ -4,7 +4,7 @@
 from PyGMRES.compiler import RC, Decorated
 
 RC().enable_numba = True
-from PyGMRES.compiler.numba import jit
+from PyGMRES.compiler.test import jit
 
 @jit()
 def test1():
@@ -17,3 +17,9 @@ def test2():
 test1()
 test2()
 print(Decorated().record)
+
+undecorated_test1 = next(Decorated().has_name("test1")).func
+undecorated_test2 = next(Decorated().has_name("test2")).func
+
+undecorated_test1()
+undecorated_test2()

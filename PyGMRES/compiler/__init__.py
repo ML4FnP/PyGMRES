@@ -38,7 +38,7 @@ class Decorated(metaclass=Singleton):
     """
     def __init__(self):
         self.descriptor = namedtuple(
-            "FunctionDescriptor", ("module", "name", "signature")
+            "FunctionDescriptor", ("module", "name", "signature", "func")
         )
         self._record = set()
 
@@ -51,6 +51,10 @@ class Decorated(metaclass=Singleton):
             self.descriptor(
                 module=func.__module__,
                 name=func.__name__,
-                signature=signature(func)
+                signature=signature(func),
+                func=func
             )
         )
+
+    def has_name(self, name):
+        return filter(lambda e:e.name==name, self._record)
