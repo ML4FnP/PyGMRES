@@ -19,8 +19,8 @@ def laplace_1d_dirichlet(x_in, xlo, xhi):
     x_pad = np.zeros((N + 2,))
     x_pad[1:N+1] = x_in[:]
 
-    x_pad[0]   = lval
-    x_pad[N+1] = rval
+    x_pad[0]   = xlo
+    x_pad[N+1] = xhi
 
     Ax = np.zeros_like(x_in)
     for ix, in np.ndindex(Ax.shape):
