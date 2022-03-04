@@ -8,30 +8,6 @@ import math
 from functools import wraps
 from inspect   import signature
 
-# define consistent linear math that stick with `np.array` (rather than
-# `np.matrix`) => this will mean that we're sticking with the "minimal" data
-# type for vector data. NOTE: this might cause a performance hit due to
-# changing data types.
-mat_to_a = lambda a    : np.squeeze(np.asarray(a))
-matmul_a = lambda a, b : mat_to_a(np.dot(a, b))
-
-
-
-def resid(A, *args, **kwargs):
-    if isinstance(A, np.matrix):
-        A_op = lambda x: matmul_a(A, x)
-        return resid_kernel(A_op, *args, **kwargs)
-    else:
-        return resid_kernel(A, *args, **kwargs)
-
-
-
-def resid_kernel(A, x, b):
-    return np.array(
-        [np.linalg.norm(A(xi)-b) for xi in x]
-    )
-
-
 
 def prob_norm(b):
     # Compute 2-norm of RHS(for scaling RHS input to network)
@@ -40,14 +16,6 @@ def prob_norm(b):
     b_Norm_max = np.max(b / b_norm)
 
     return b_norm, b_Norm_max
-
-
-
-# mathematical indices for python
-cidx   = lambda i: i-1  # c-style index from math-style index
-midx   = lambda i: i+1  # math-style index from c-style index
-mrange = lambda n: range(1, n + 1)
-
 
 
 def timer(func):
@@ -68,15 +36,12 @@ def timer(func):
     return wrapper_timer
 
 
-
 def Gauss_pdf(xArr,loc,sig):
     return np.exp(-0.5*((xArr-loc)/sig)**2.0)/(2*sig*np.sqrt(np.pi))
 
 
-
 def Gauss_pdf_2D(xGrid,yGrid,xloc,yloc,sig):
     return np.exp(-0.5*(  ((xGrid-xloc)/sig)**2.0 +((yGrid-yloc)/sig)**2.0 ))/(2*np.pi*sig**2.0)
-
 
 
 def moving_average(a, n):
@@ -89,14 +54,12 @@ def moving_average(a, n):
     return np.sum(a[-Window-1:-1])/Window
 
 
-
 class Singleton(type):
     _instances = {}
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
-
 
 
 # From here: https://stackoverflow.com/questions/61223812/python-print-how-to-clear-output-before-print-end-r
@@ -110,7 +73,6 @@ class OverwriteLast(object):
             print(" "*self.last, end="\r")
         self.last = len(s)
         print(s, end="\r")
-
 
 
 class StatusPrinter(object, metaclass=Singleton):

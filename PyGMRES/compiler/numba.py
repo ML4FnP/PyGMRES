@@ -7,6 +7,9 @@ RC().lock()
 
 if RC().enable_numba:
     import numba
+    from numba.typed import List
+else:
+    List = list()
 
 
 def jit(**kwargs):

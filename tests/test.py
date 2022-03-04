@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyGMRES.compiler import RC, Decorated
+from PyGMRES.compiler import RC, Decorated, get_undecorated_fn
 
 RC().enable_numba = True
 from PyGMRES.compiler.test import jit
@@ -18,8 +18,8 @@ test1()
 test2()
 print(Decorated().record)
 
-undecorated_test1 = next(Decorated().has_name("test1")).func
-undecorated_test2 = next(Decorated().has_name("test2")).func
+undecorated_test1 = get_undecorated_fn("test1")
+undecorated_test2 = get_undecorated_fn("test2")
 
 undecorated_test1()
 undecorated_test2()

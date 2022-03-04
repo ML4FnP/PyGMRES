@@ -1,18 +1,15 @@
 import numpy as np
 import timemory
 
-from  timemory.component import WallClock
+from timemory.component import WallClock
 
-from PyGMRES.compiler import RC, Decorated
+from PyGMRES.compiler import RC, Decorated, get_undecorated_fn
 
 RC().enable_numba = True
 from PyGMRES import linop
 
 
-laplace_1d_dirichlet_uncompiled = next(
-    Decorated().has_name("laplace_1d_dirichlet")
-).func
-
+laplace_1d_dirichlet_uncompiled = get_undecorated_fn("laplace_1d_dirichlet")
 
 b = np.zeros((1000,))
 b[100:200] = 2

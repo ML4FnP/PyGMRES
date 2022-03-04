@@ -58,3 +58,7 @@ class Decorated(metaclass=Singleton):
 
     def has_name(self, name):
         return filter(lambda e:e.name==name, self._record)
+
+
+def get_undecorated_fn(name):
+    return next(Decorated().has_name(name)).func

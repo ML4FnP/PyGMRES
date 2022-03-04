@@ -7,168 +7,28 @@
 
 import numpy                as     np
 import scipy                as     sp
-from   numba                import njit
 from   scipy.linalg         import get_blas_funcs, get_lapack_funcs
 from   scipy.sparse.sputils import upcast
 
-from .util import matmul_a, cidx, mrange
+from .compiler.numba import jit, List
+from .linop          import matmul_a
 
 
-
-#
-# EDITOR'S NOTE: In order to better check this against literature, I used the
-# the cidx (turn a 1..N -- fortran-style -- index to a 0..N-1 -- c-style --
-# index), and the `mrange` (math-style range for loops: 1..N instead of 0..N-1)
-#
-
-# mathematical indices for python
-@njit(nogil=True)
-def cidx_numba(i):
-    return i-1  # c-style index from math-style index
-@njit(nogil=True)
-def midx_numba(i):
-    return i+1  # math-style index from c-style index
-
-
-
+@jit(nogil=True, nopython=True)
 def update_solution(x, y, q):
     g = np.zeros_like(x)
 
     for i, iy in enumerate(y):
-        # g += q[i]*iy  # This line causes a reduction in precision when x0 input of GMRES comes from the NN.
+        # Avoid += => observed to reduction in precision.
         g = g + q[i]*iy
 
     return g
 
 
-
-@njit(nogil=True)
-def update_solution_numba(x, y, q):
-    g = np.zeros_like(x)
-
-    for i, iy in enumerate(y):
-        # g += q[i]*iy  # This line causes a reduction in precision when x0 input of GMRES comes from the NN.
-        g = g + q[i]*iy
-
-    return g
-
-
-
-def GMRES(A, *args, **kwargs):
-    if isinstance(A, np.matrix):
-        # construct closure  => linear operator
-        lin_op = lambda x: matmul_a(A, x)
-        return GMRES_op(lin_op, *args, **kwargs)
-    else:
-        return GMRES_op(A, *args, **kwargs)
-
-
-
-def GMRES_op(A, b, x0, e, nmax_iter, restart=None, debug=False):
+@jit(nogil=True, nopython=True)
+def GMRES(A, b, x0, e, nmax_iter, restart=None, debug=False):
     """
-    Quick and dirty GMRES -- TODO: optimize going to larger
-    systems.
-    """
-
-    # TODO: you can use this to make the problem agnostic to complex numbers
-    # # Defining xtype as dtype of the problem, to decide which BLAS functions
-    # # import.
-    # xtype = upcast(x0.dtype, b.dtype)
-
-    # Defining dimension
-    dimen = len(x0)
-
-    # TODO: use BLAS functions
-    # # Get fast access to underlying BLAS routines
-    # [lartg] = get_lapack_funcs(['lartg'], [x0] )
-    # if np.iscomplexobj(np.zeros((1,), dtype=xtype)):
-    #     [axpy, dotu, dotc, scal] =\
-    #         get_blas_funcs(['axpy', 'dotu', 'dotc', 'scal'], [x0])
-    # else:
-    #     # real type
-    #     [axpy, dotu, dotc, scal] =\
-    #         get_blas_funcs(['axpy', 'dot', 'dot', 'scal'], [xO])
-
-    # TODOs for this function:
-    # 1. list -> numpy.array <= better memory access
-    # 2. don't append to lists -> prealoc and slice
-    # 3. add documentation -- this will probably never happen :P
-
-    normb = np.linalg.norm(b)
-    if normb == 0.0:
-        normb = 1.0
-
-    # TODO: is the old code (below) faster?
-    # r = b - np.asarray(np.dot(A, x0)).reshape(-1)
-    # r = b - matmul_a(A, x0)
-    r = b - A(x0)
-
-    # Set number of outer loops based on the value of `restart`
-    n_outer = 1
-    if restart is not None:
-        n_outer = int(restart)
-
-    x     = [x0]
-    x_sol = x0
-
-    for l in mrange(n_outer):
-        q    = [np.zeros_like(x0)] * (nmax_iter)
-        q[cidx(1)] = r / np.linalg.norm(r)
-
-        h = np.zeros((nmax_iter + 1, nmax_iter))
-
-        for k in mrange(min(nmax_iter, dimen)):
-            # TODO: is the old code (below) faster?
-            # y = np.asarray(np.dot(A, q[k])).reshape(-1)
-            # y = matmul_a(A, q[cidx(k)])
-            y = A(q[cidx(k)])
-
-            # Modified Grahm-Schmidt
-            for j in range(1, k+1):
-                # use flatten -> enable N-D dot product
-                h[cidx(j), cidx(k)] = np.dot(q[cidx(j)].flatten(), y.flatten())
-                y = y - h[cidx(j), cidx(k)] * q[cidx(j)]
-
-            h[cidx(k + 1), cidx(k)] = np.linalg.norm(y)
-
-            if (h[cidx(k + 1), cidx(k)] != 0 and k != nmax_iter):
-                q[cidx(k + 1)] = y / h[cidx(k + 1), cidx(k)]
-
-            # Debug-mode tracks inner-loop convergence
-            if debug:
-                beta    = np.zeros(nmax_iter + 1)
-                beta[0] = np.linalg.norm(r)
-                y       = np.linalg.lstsq(h, beta, rcond=None)[0]
-                # g       = np.dot(np.asarray(q[:cidx(k)]).transpose(), y[:cidx(k)])
-                g       = update_solution(x_sol, y[:cidx(k)], q[:cidx(k)])
-                x.append(x_sol + g)
-
-
-        beta    = np.zeros(nmax_iter + 1)
-        beta[0] = np.linalg.norm(r)
-        y       = np.linalg.lstsq(h, beta, rcond=None)[0]
-        # g       = np.dot(np.asarray(q).transpose(), y)
-        g       = update_solution(x_sol, y, q)
-
-        x_sol   = x_sol + g
-        x.append(x_sol)
-
-        # r = b - matmul_a(A, x_sol)
-        r = b - A(x_sol)
-
-        # Break out if the residual is lower than threshold
-        if np.linalg.norm(r)/normb < e:
-            break
-
-    return x
-
-
-
-@njit(nogil=True)
-def GMRES_numba(A, b, x0, e, nmax_iter, restart, debug):
-    """
-    Quick and dirty GMRES -- TODO: optimize going to larger
-    systems.
+    Quick and dirty GMRES -- TODO: optimize going to larger systems.
     """
     
     b  = b.astype(np.float64)
@@ -180,8 +40,7 @@ def GMRES_numba(A, b, x0, e, nmax_iter, restart, debug):
     # xtype = upcast(x0.dtype, b.dtype)
 
     # Defining dimension
-    #dimen = len(x0)
-    dimen, _ = np.shape(x0)
+    dimen = x0.shape[0]
 
     # TODO: use BLAS functions
     # # Get fast access to underlying BLAS routines
@@ -203,9 +62,6 @@ def GMRES_numba(A, b, x0, e, nmax_iter, restart, debug):
     if normb == 0.0:
         normb = 1.0
 
-    # TODO: is the old code (below) faster?
-    # r = b - np.asarray(np.dot(A, x0)).reshape(-1)
-    # r = b - matmul_a(A, x0)
     r = b - A(x0)
 
     # Set number of outer loops based on the value of `restart`
@@ -213,54 +69,49 @@ def GMRES_numba(A, b, x0, e, nmax_iter, restart, debug):
     if restart is not None:
         n_outer = int(restart)
 
-    x     = [x0]
+    x = List()
+    x.append(x0)
     x_sol = x0
 
     # for l in mrange(n_outer):
-    for l in range(1, n_outer + 1):
+    for l in range(n_outer):
         q    = [x0] * (nmax_iter)
-        q[cidx_numba(1)] = r / np.linalg.norm(r)
+        q[0] = r / np.linalg.norm(r)
 
         h = np.zeros((nmax_iter + 1, nmax_iter))
 
         # for k in mrange(min(nmax_iter, dimen)):
-        for k in range(1, min(nmax_iter, dimen) + 1):
-            # TODO: is the old code (below) faster?
-            # y = np.asarray(np.dot(A, q[k])).reshape(-1)
-            # y = matmul_a(A, q[cidx(k)])
-            y = A(q[cidx_numba(k)])
+        for k in range(min(nmax_iter, dimen)):
+            y = A(q[k])
 
             # Modified Grahm-Schmidt
-            for j in range(1, k+1):
+            for j in range(k+1):
                 # use flatten -> enable N-D dot product
-                h[cidx_numba(j), cidx_numba(k)] = np.dot(q[cidx_numba(j)].flatten(), y.flatten())
-                y = y - h[cidx_numba(j), cidx_numba(k)] * q[cidx_numba(j)]
+                h[j, k] = np.dot(q[j].flatten(), y.flatten())
+                y = y - h[j, k] * q[j]
 
-            h[cidx_numba(k + 1), cidx_numba(k)] = np.linalg.norm(y)
+            h[k+1, k] = np.linalg.norm(y)
 
-            if (h[cidx_numba(k + 1), cidx_numba(k)] != 0 and k != nmax_iter):
-                q[cidx_numba(k + 1)] = y / h[cidx_numba(k + 1), cidx_numba(k)]
+            if (h[k+1, k] != 0 and k != nmax_iter - 1):
+                q[k+1] = y / h[k+1, k]
 
             # Debug-mode tracks inner-loop convergence
             if debug:
                 beta    = np.zeros(nmax_iter + 1)
                 beta[0] = np.linalg.norm(r)
                 y       = np.linalg.lstsq(h, beta)[0]
-                # g       = np.dot(np.asarray(q[:cidx(k)]).transpose(), y[:cidx(k)])
-                g       = update_solution_numba(x_sol, y[:cidx_numba(k)], q[:cidx_numba(k)])
+                g       = update_solution(x_sol, y[:k], q[:k])
                 x.append(x_sol + g)
 
 
         beta    = np.zeros(nmax_iter + 1)
         beta[0] = np.linalg.norm(r)
         y       = np.linalg.lstsq(h, beta)[0]
-        # g       = np.dot(np.asarray(q).transpose(), y)
-        g       = update_solution_numba(x_sol, y, q)
+        g       = update_solution(x_sol, y, q)
 
         x_sol   = x_sol + g
         x.append(x_sol)
 
-        # r = b - matmul_a(A, x_sol)
         r = b - A(x_sol)
 
         # Break out if the residual is lower than threshold
