@@ -7,13 +7,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="PyGMRES",
-    version="0.1.0",
+    version="0.1.1",
     author="Johannes Blaschke",
-    author_email="johannes@blaschke.science",
+    author_email="jpblaschke@lbl.gov",
     description="A python implementation of the GMRES algorithm",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="",
+    url="https://github.com/ML4FnP/PyGMRES",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
