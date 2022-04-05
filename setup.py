@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="PyGMRES",
-    version="0.0.1",
+    version="0.1.0",
     author="Johannes Blaschke",
     author_email="johannes@blaschke.science",
     description="A python implementation of the GMRES algorithm",
